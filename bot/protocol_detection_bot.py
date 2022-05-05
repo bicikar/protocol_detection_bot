@@ -1,8 +1,11 @@
 import os
 import telebot
+import requests
 from pdf2image import convert_from_path
 
 import keys  # файл с ключами
+
+URL = 'https://api.telegram.org/bot'
 
 
 def create_infrastructure():
@@ -15,10 +18,9 @@ def create_infrastructure():
         os.mkdir("../tmp/tables")
 
 
-def send_document(path: str, chat_id: str):
-    doc = open(path, 'rb')
-    bot.send_document(chat_id, doc)
-    bot.send_document(chat_id, "FILEID")
+def send_photo_file(img: str, chat_id: str):
+    files = {'photo': open(img, 'rb')}
+    requests.post(f'{URL}{keys.BOT_TOKEN}/sendPhoto?chat_id={chat_id}', files=files)
 
 
 # TODO
@@ -55,11 +57,12 @@ def handle_docs(message):
         os.remove(src)
 
         images = os.listdir("../tmp/images/")
+        print(images)
         for img in images:
             print(img)
             csv = convert_img_to_csv(img)
             # TODO send csv
-            send_document(os.path.abspath("../tmp/images/" + img), message.from_user.id)
+            send_photo_file(os.path.abspath("../tmp/images/" + img), message.from_user.id)
             os.remove(os.path.abspath("../tmp/images/" + img))
             print("end")
 

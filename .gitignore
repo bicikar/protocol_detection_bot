@@ -1,0 +1,9 @@
+#Pycharm
+.idea/
+venv/
+
+#Telebot
+pyTelegramBotAPI/
+
+#Keys
+bot/keys.py
