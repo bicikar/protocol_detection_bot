@@ -1,9 +1,11 @@
 import os
 import telebot
 import requests
+import cv2
 from pdf2image import convert_from_path
 
 import keys  # файл с ключами
+import page_recognition.page_rec as page_rec
 
 URL = 'https://api.telegram.org/bot'
 
@@ -18,8 +20,8 @@ def create_infrastructure():
         os.mkdir("../tmp/tables")
 
 
-def send_photo_file(img: str, chat_id: str):
-    files = {'photo': open(img, 'rb')}
+def send_file(file: str, type: str, chat_id: str):
+    files = {type: open(file, 'rb')}
     requests.post(f'{URL}{keys.BOT_TOKEN}/sendPhoto?chat_id={chat_id}', files=files)
 
 
@@ -60,9 +62,11 @@ def handle_docs(message):
         print(images)
         for img in images:
             print(img)
-            csv = convert_img_to_csv(img)
+            #csv = convert_img_to_csv(img)
+            csv = page_rec.page_recognition(cv2.imread(os.path.abspath("../tmp/images/" + img), 0))
             # TODO send csv
-            send_photo_file(os.path.abspath("../tmp/images/" + img), message.from_user.id)
+            #send_photo_file(os.path.abspath("../tmp/images/" + img), message.from_user.id)
+            send_file(csv, 'document', message.from_user.id)
             os.remove(os.path.abspath("../tmp/images/" + img))
             print("end")
 
