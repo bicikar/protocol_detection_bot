@@ -7,3 +7,6 @@ pyTelegramBotAPI/
 
 #Keys
 bot/keys.py
+
+# goole-api
+google_sheets/creds.json

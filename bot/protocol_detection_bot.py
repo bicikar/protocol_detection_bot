@@ -17,11 +17,13 @@ PATH_TO_OUTPUT = ''
 
 num_of_sheet = 0
 
+
 def create_dir(path: str):
     if os.path.exists(path):
         pass
     else:
         os.mkdir(path)
+
 
 def create_infrastructure():
     create_dir(PATH_TO_TMP)
@@ -33,6 +35,7 @@ def create_infrastructure():
 def send_file(file: str, type: str, chat_id: str):
     files = {type: open(file, 'rb')}
     requests.post(f'{URL}{keys.BOT_TOKEN}/sendDocument?chat_id={chat_id}', files=files)
+    # заполнить гугл док и выплинуть ссылку
 
 
 bot = telebot.TeleBot(keys.BOT_TOKEN)
@@ -73,7 +76,11 @@ def handle_docs(message):
             PATH_TO_OUTPUT = PATH_TO_CSV + str(num_of_sheet) + '.csv'
             set_path_to_output(PATH_TO_OUTPUT)
             csv = page_rec(cv2.imread(os.path.abspath(PATH_TO_IMG + img), 0))
+            # send_to_telegram
             send_file(PATH_TO_OUTPUT, 'document', message.from_user.id)
+            # send_to_google-sheets
+
+
             os.remove(os.path.abspath(PATH_TO_IMG + img))
 
         tables = os.listdir(PATH_TO_CSV)
