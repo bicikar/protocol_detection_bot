@@ -1,4 +1,6 @@
 from pprint import pprint
+import csv
+import pandas as pd
 
 import httplib2
 import apiclient.discovery
@@ -146,11 +148,29 @@ def assign_values(values_to_update, range_to_update="A1:", majorDimension_to_upd
     ).execute()
 
 
+def assign_csv_file(csv_file, range_to_update="A1:"):
+    csv_reader = csv.reader(csv_file)
+    values_to_update = list(csv_reader)
+
+    assign_values(values_to_update, range_to_update=range_to_update)
+
+
+def clear_sheet(range_to_clear="A1:Z50"):
+    global service, spreadsheet_id
+    service.spreadsheets().values().clear(
+        spreadsheetId=cur_spreadsheet_id,
+        range=range_to_clear,
+        body={}
+    ).execute()
 
 
 if __name__ == '__main__':
     connect_to_spreadsheet()
     sheetList = get_all_sheets()
+    with open('data/2.csv', newline='') as csvfile:
+        assign_csv_file(csvfile, range_to_update="B25:")
+
+    #clear_sheet()
 
     """
     for sheet in sheetList:
@@ -162,7 +182,14 @@ if __name__ == '__main__':
                 [8, 9],
                 [10]]
 
-    assign_values(list_val, range_to_update="K18:")
+    #assign_values(list_val, range_to_update="K18:")
 
 
+    """
+    with open('data/2.csv', newline='') as csvfile:
+        spamreader = csv.reader(csvfile)
 
+        data = list(spamreader)
+        print(data)
+    assign_values(data, range_to_update="C14:")
+    """
