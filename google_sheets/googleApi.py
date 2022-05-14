@@ -27,7 +27,7 @@ def connect_to_spreadsheet(spreadsheet_id=cur_spreadsheet_id):
     service = apiclient.discovery.build('sheets', 'v4', http=httpAuth)
 
 
-def get_all_sheets(spreadsheet_id=cur_spreadsheet_id):
+def get_all_sheets():
     # Получаем список листов, их Id и название
     global cur_spreadsheet_id, service
     spreadsheet = service.spreadsheets().get(spreadsheetId=cur_spreadsheet_id).execute()
@@ -49,6 +49,11 @@ def get_sheetTitle(sheet):
     return sheet['properties']['title']
 
 
+def get_count_sheets():
+    sheetList = get_all_sheets()
+    return len(sheetList)
+
+
 def get_right_age_of_rectangle(left_adge, size_col, size_row):
     if size_col < 0 or size_row < 0:
         print("Смещение от начала прямоугольника должны быть неотрицательные")
@@ -65,10 +70,10 @@ def get_right_age_of_rectangle(left_adge, size_col, size_row):
     if ind_sep == -1:
         print("Нету разделителя :")
         return None
-    #print("ind_sep=", ind_sep)
+    # print("ind_sep=", ind_sep)
 
     row_left = left_adge[1:ind_sep]
-    #print("row_left = ", row_left)
+    # print("row_left = ", row_left)
     row_left = int(row_left)
 
     # находим правый угол
@@ -78,10 +83,9 @@ def get_right_age_of_rectangle(left_adge, size_col, size_row):
     col_right = chr(ord(col_left) + size_col - 1)
     row_right = row_left + size_row - 1
 
-
     right_adge = col_right + str(row_right)
     left_adge = col_left + str(row_left)
-    return  left_adge, right_adge
+    return left_adge, right_adge
 
 
 def check_is_2d_list(list_2d):
@@ -103,16 +107,15 @@ def get_max_cols_rows_2d_list(list_2d):
         return -1
 
 
-def assign_values(values_to_update, range_to_update="A1:", majorDimension_to_update="ROWS"):
+def assign_values(values_to_update, title_sheet="Лист1", range_to_update="A1:", majorDimension_to_update="ROWS"):
     global cur_spreadsheet_id, service
-    #print('Hello')
+    # print('Hello')
     if not range_to_update[1].isdigit():
-        print("Дальше буквы Z не работаем!")
+        print("Дальше буквы Z не работаем! И на втором месте должна стоять цифра!")
         return
 
-
     if not check_is_2d_list(values_to_update):
-        #print(values_to_update)
+        # print(values_to_update)
         print("Значения должны быть в виде двумерного массива")
         return
 
@@ -120,26 +123,25 @@ def assign_values(values_to_update, range_to_update="A1:", majorDimension_to_upd
     if majorDimension_to_update == "ROWS":
         size_col = get_max_cols_rows_2d_list(values_to_update)
         size_row = len(values_to_update)
-        #print("size_col=", size_col)
-        #print("size_row=", size_row)
+        # print("size_col=", size_col)
+        # print("size_row=", size_row)
 
         left_adge, right_adge = get_right_age_of_rectangle(range_to_update, size_col, size_row)
-        #print(left_adge)
-        #print(right_adge)
+        # print(left_adge)
+        # print(right_adge)
     else:
         pass
 
-
     real_range_to_update = left_adge + ":" + right_adge
-    #print("real_range_to_update=", real_range_to_update)
-    #return
+    # print("real_range_to_update=", real_range_to_update)
+    # return
 
     service.spreadsheets().values().batchUpdate(
         spreadsheetId=cur_spreadsheet_id,
         body={
             "valueInputOption": "USER_ENTERED",
             "data": [
-                {"range": real_range_to_update,
+                {"range": title_sheet + "!" + real_range_to_update,
                  "majorDimension": majorDimension_to_update,
                  "values": values_to_update
                  }
@@ -148,48 +150,76 @@ def assign_values(values_to_update, range_to_update="A1:", majorDimension_to_upd
     ).execute()
 
 
-def assign_csv_file(csv_file, range_to_update="A1:"):
+def assign_csv_file(csv_file, title_sheet="Лист1", range_to_update="A1:"):
     csv_reader = csv.reader(csv_file)
     values_to_update = list(csv_reader)
 
-    assign_values(values_to_update, range_to_update=range_to_update)
+    assign_values(values_to_update, title_sheet=title_sheet, range_to_update=range_to_update)
 
 
-def clear_sheet(range_to_clear="A1:Z50"):
+def clear_sheet(title_sheet="Лист1", range_to_clear="A1:Z50"):
     global service, spreadsheet_id
     service.spreadsheets().values().clear(
         spreadsheetId=cur_spreadsheet_id,
-        range=range_to_clear,
+        range=title_sheet + "!" + range_to_clear,
         body={}
+    ).execute()
+
+
+def create_new_sheet():
+    global cur_spreadsheet_id, service
+    new_title = "Лист" + str(get_count_sheets() + 1)
+    try:
+        results = service.spreadsheets().batchUpdate(
+            spreadsheetId=cur_spreadsheet_id,
+            body={
+                "requests": [{
+                        "addSheet": {
+                            "properties": {
+                                "title": new_title,
+                            }
+                        }
+                    }
+                ]
+            }).execute()
+    except TypeError:
+        print("Имя занято")
+
+
+def delete_sheet(sheet_id):
+    global service, cur_spreadsheet_id
+    response = service.spreadsheets().batchUpdate(
+        spreadsheetId=cur_spreadsheet_id,
+        body={
+            'requests': [
+                {
+                    "deleteSheet": {
+                        "sheetId": sheet_id
+                    }
+                }
+            ]
+        }
     ).execute()
 
 
 if __name__ == '__main__':
     connect_to_spreadsheet()
     sheetList = get_all_sheets()
+    '''
     with open('data/2.csv', newline='') as csvfile:
         assign_csv_file(csvfile, range_to_update="B25:")
-
-    #clear_sheet()
-
-    """
-    for sheet in sheetList:
-        print(get_sheetId(sheet), ' : ',  get_sheetTitle(sheet))
-    """
+    '''
+    # clear_sheet()
+    #create_new_sheet()
 
     list_val = [[1, 2, 3, 4],
                 [5, 6, 7, 8, 9],
                 [8, 9],
                 [10]]
 
-    #assign_values(list_val, range_to_update="K18:")
+    assign_values(list_val, "Лист2", range_to_update="B2:")
+    clear_sheet("Лист2")
+    # assign_values(list_val, range_to_update="K18:")
 
-
-    """
-    with open('data/2.csv', newline='') as csvfile:
-        spamreader = csv.reader(csvfile)
-
-        data = list(spamreader)
-        print(data)
-    assign_values(data, range_to_update="C14:")
-    """
+    #pprint(get_all_sheets())
+    #delete_sheet(0)
