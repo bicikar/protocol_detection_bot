@@ -54,6 +54,6 @@ def digit_model():
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
 
-    model.save('trained_digit.h5')
+    model.save('final_model2.h5')
 
 digit_model()

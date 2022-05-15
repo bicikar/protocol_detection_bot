@@ -9,6 +9,12 @@ from keras.preprocessing.image import img_to_array
 import os
 
 JB = 0
+PATH_TO_OUTPUT = ''
+
+
+def get_path_to_output(out: str):
+    global PATH_TO_OUTPUT
+    PATH_TO_OUTPUT = out
 
 
 def sort_contours(cnts, method="left-to-right"):
@@ -122,6 +128,7 @@ def box_preparation(img):
     """Prepare tabular structure."""
     thresh, img_bin = cv2.threshold(img, 128, 255,
                                     cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+
     img_bin = 255 - img_bin
 
     kernel_len = np.array(img).shape[1] // 100
@@ -205,7 +212,7 @@ def page_recognition(img):
         finalboxes.append(lis)
 
     outer = []
-    model = load_model('final_model2.h5')
+    model = load_model('../page_recognition/digit_rec/final_model2.h5')
     for i in range(len(finalboxes)):
         for j in range(len(finalboxes[i])):
             inner = ''
@@ -228,8 +235,9 @@ def page_recognition(img):
     arr = np.array(outer)
     df = pd.DataFrame(arr.reshape(len(row), countcol))
     df = df.drop(df[df[1].map(len) < 3].index)
-    df.to_csv('output.csv')
+    global PATH_TO_OUTPUT
+    df.to_csv(PATH_TO_OUTPUT)
     os.remove('tmp.jpg')
     return df
 
-page_recognition(cv2.imread(r'CH_list1-1.png', 0))
+#page_recognition(cv2.imread(r'CH_list1-1.png', 0))
