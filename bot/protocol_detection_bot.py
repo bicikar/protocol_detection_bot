@@ -8,6 +8,8 @@ import keys  # файл с ключами
 from page_recognition.page_rec import page_recognition as page_rec
 from page_recognition.page_rec import get_path_to_output as set_path_to_output
 
+from google_sheets.google_sheet_api import assign_pdf_file, connect_to_spreadsheet
+
 URL = 'https://api.telegram.org/bot'
 PATH_TO_TMP = '../tmp'
 PATH_TO_IMG = PATH_TO_TMP + '/images/'
@@ -38,6 +40,7 @@ def send_file(file: str, type: str, chat_id: str):
     # заполнить гугл док и выплинуть ссылку
 
 
+
 bot = telebot.TeleBot(keys.BOT_TOKEN)
 
 
@@ -60,6 +63,7 @@ def handle_docs(message):
 
         images = convert_from_path(src)
 
+        images = list(reversed(images))
         global PATH_TO_IMG
         for i in range(len(images)):
             # Save pages as images in the pdf
@@ -71,17 +75,27 @@ def handle_docs(message):
         global num_of_sheet
         global PATH_TO_CSV
         global PATH_TO_OUTPUT
+        list_paths_to_csv = []
+
+
         for img in images:
             num_of_sheet += 1
             PATH_TO_OUTPUT = PATH_TO_CSV + str(num_of_sheet) + '.csv'
             set_path_to_output(PATH_TO_OUTPUT)
             csv = page_rec(cv2.imread(os.path.abspath(PATH_TO_IMG + img), 0))
+            list_paths_to_csv.append(PATH_TO_OUTPUT)
+
             # send_to_telegram
             send_file(PATH_TO_OUTPUT, 'document', message.from_user.id)
             # send_to_google-sheets
 
 
             os.remove(os.path.abspath(PATH_TO_IMG + img))
+
+        # assign_pdf
+        connect_to_spreadsheet()
+        assign_pdf_file(list_paths_to_csv)
+
 
         tables = os.listdir(PATH_TO_CSV)
         for csv in tables:

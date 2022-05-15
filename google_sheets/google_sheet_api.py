@@ -13,7 +13,9 @@ def connect_to_spreadsheet(spreadsheet_id=cur_spreadsheet_id):
     global cur_spreadsheet_id
     cur_spreadsheet_id = spreadsheet_id
 
-    CREDENTIALS_FILE = 'creds.json'
+    #CREDENTIALS_FILE = 'creds.json'
+    CREDENTIALS_FILE = '../google_sheets/creds.json'
+
     cur_spreadsheet_id = spreadsheet_id
 
     credentials = ServiceAccountCredentials.from_json_keyfile_name(
@@ -150,10 +152,15 @@ def assign_values(values_to_update, title_sheet="Лист1", range_to_update="A1
     ).execute()
 
 
-def assign_csv_file(csv_file, title_sheet="Лист1", range_to_update="A1:"):
-    csv_reader = csv.reader(csv_file)
-    values_to_update = list(csv_reader)
+def get_data_from_csv_file(path_to_csv_file):
+    with open(path_to_csv_file, 'r', newline='') as csvfile:
+        csv_reader = csv.reader(csvfile)
+        data_from_csv = list(csv_reader)
+    return data_from_csv
 
+
+def assign_csv_file(path_to_csv_file, title_sheet="Лист1", range_to_update="A1:"):
+    values_to_update = get_data_from_csv_file(path_to_csv_file)
     assign_values(values_to_update, title_sheet=title_sheet, range_to_update=range_to_update)
 
 
@@ -202,23 +209,42 @@ def delete_sheet(sheet_id):
     ).execute()
 
 
+def assign_pdf_file(paths_to_csv_list):
+    cnt_csv_list = len(paths_to_csv_list)
+    cnt_sheets = len(get_all_sheets())
+    # можно реализовать одним batchUpdate
+    if cnt_csv_list > cnt_sheets:
+        for _ in range(cnt_csv_list - cnt_sheets):
+            create_new_sheet()
+    try:
+        for ind, sheet in enumerate(get_all_sheets()):
+                clear_sheet(get_sheetTitle(sheet))
+                assign_csv_file(path_to_csv_file=paths_to_csv_list[ind], title_sheet=get_sheetTitle(sheet))
+    except TypeError:
+        print("Error : assign_pdf_file")
+
+
 if __name__ == '__main__':
     connect_to_spreadsheet()
     sheetList = get_all_sheets()
-    '''
-    with open('data/2.csv', newline='') as csvfile:
-        assign_csv_file(csvfile, range_to_update="B25:")
-    '''
-    # clear_sheet()
-    #create_new_sheet()
+    """
+    
+    pprint(sheetList)
+    list_path_to_pdf = []
+    list_path_to_pdf.append("data/1.csv")
+    list_path_to_pdf.append("data/2.csv")
 
+    print(list_path_to_pdf)
+    assign_pdf_file(list_path_to_pdf)
+
+    """
+    '''
     list_val = [[1, 2, 3, 4],
                 [5, 6, 7, 8, 9],
                 [8, 9],
                 [10]]
 
-    assign_values(list_val, "Лист2", range_to_update="B2:")
-    clear_sheet("Лист2")
+    '''
     # assign_values(list_val, range_to_update="K18:")
 
     #pprint(get_all_sheets())
