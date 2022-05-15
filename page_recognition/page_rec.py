@@ -212,7 +212,7 @@ def page_recognition(img):
         finalboxes.append(lis)
 
     outer = []
-    model = load_model('../page_recognition/digit_rec/final_model2.h5')
+    model = load_model('../page_recognition/digit_rec/final_model.h5')
     for i in range(len(finalboxes)):
         for j in range(len(finalboxes[i])):
             inner = ''
