@@ -198,6 +198,16 @@ def page_recognition(img, model):
 
 
 def pdf_processing(src):
+    """
+    Return dict with final tables for all sections.
+
+        Parameters:
+            src (str): Path to pdf source
+
+        Returns:
+            sec_dataframes (dict): val is None if no section lists were detected
+                                    and pd.Dataframe otherwise
+    """
     sec_dataframes = {
         'CH': None,
         'MA': None,
