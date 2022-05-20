@@ -30,7 +30,7 @@ def extract_table(table_body, __line__, lines=None):
 
     if len(temp_lines_hor) == 0 or len(temp_lines_ver) == 0:
         print("Either Horizontal Or Vertical Lines Not Detected")
-        return None
+        return [], 0, 0
 
     table = table_body.copy()
     x = 0

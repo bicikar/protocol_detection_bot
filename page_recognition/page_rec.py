@@ -187,11 +187,8 @@ def page_recognition(img, model):
     if not df.empty:
         df.drop([0, 1], axis=1, inplace=True)
         df.drop([0], axis=0, inplace=True)
-    # print(df)
-    df.to_csv('GOVNO.csv')
     if df.empty:
         df = None
-    # global PATH_TO_OUTPUT
 
     try:
         os.remove('tmp.jpg')
