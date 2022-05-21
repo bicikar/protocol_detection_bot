@@ -160,6 +160,7 @@ def get_data_from_csv_file(path_to_csv_file):
 
 
 def assign_csv_file(path_to_csv_file, title_sheet="Лист1", range_to_update="A1:"):
+    print("     PATH " + path_to_csv_file)
     values_to_update = get_data_from_csv_file(path_to_csv_file)
     assign_values(values_to_update, title_sheet=title_sheet, range_to_update=range_to_update)
 
