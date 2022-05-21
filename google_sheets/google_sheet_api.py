@@ -6,15 +6,15 @@ import httplib2
 import apiclient.discovery
 from oauth2client.service_account import ServiceAccountCredentials
 
-cur_spreadsheet_id = '1fOmbOzRUPOhiY4JqEKGjv_kEDNEDPnNVQVtJA4E1yNI'
+#CREDENTIALS_FILE = '../google_sheets/creds.json'
+CREDENTIALS_FILE = 'creds.json'
 
+cur_spreadsheet_id = '1fOmbOzRUPOhiY4JqEKGjv_kEDNEDPnNVQVtJA4E1yNI'
+httpAuth = None
 
 def connect_to_spreadsheet(spreadsheet_id=cur_spreadsheet_id):
-    global cur_spreadsheet_id
+    global cur_spreadsheet_id, CREDENTIALS_FILE, httpAuth
     cur_spreadsheet_id = spreadsheet_id
-
-    #CREDENTIALS_FILE = 'creds.json'
-    CREDENTIALS_FILE = '../google_sheets/creds.json'
 
     cur_spreadsheet_id = spreadsheet_id
 
@@ -193,6 +193,77 @@ def create_new_sheet():
         print("Имя занято")
 
 
+def create_new_doc(title_doc="Новый тестовый документ", title_sheet="Лист номер один", rowCount=200, columnCount=30):
+    """Create new doc
+    :param title_doc: title new doc
+    :param title_sheet: title first sheet
+    :param rowCount: max rowCount
+    :param columnCount: max columnCount
+    :return spreedsheetId new doc
+    """
+    global service
+    spreadsheet = service.spreadsheets().create(body={
+        'properties': {'title': title_doc, 'locale': 'ru_RU'},
+        'sheets': [{'properties': {'sheetType': 'GRID',
+                                   'sheetId': 0,
+                                   'title': title_sheet,
+                                   'gridProperties': {'rowCount': rowCount, 'columnCount': columnCount}}}]
+    }).execute()
+    spreadsheetId = spreadsheet['spreadsheetId']  # сохраняем идентификатор файла
+
+
+    print('https://docs.google.com/spreadsheets/d/' + spreadsheetId)
+
+    return spreadsheetId
+
+
+def give_everyone_access(role='writer', spreadsheetId=cur_spreadsheet_id):
+    ''' give everyone access to the doc(spredsheet)
+        :param spreadsheetId: doc spreadsheetId
+        :param role: mode work
+    '''
+    type = 'anyone'
+
+    global httpAuth
+    driveService = apiclient.discovery.build('drive', 'v3',
+                                             http=httpAuth)  # Выбираем работу с Google Drive и 3 версию API
+    access = driveService.permissions().create(
+        fileId=spreadsheetId,
+        body={'type': type,
+              'role': role,
+              },
+        # Открываем доступ на редактирование
+        fields='id'
+    ).execute()
+
+
+def give_person_access(target="naumtsevalex@gmail.com", type='user', role='writer', spreadsheetId=cur_spreadsheet_id):
+    '''give doc(spreadsheetId) permission  to target
+        :param type: type of who needs acces it is not anyone
+        :param spreadsheetId: doc spreadsheetId
+        :param target: who needs access
+
+    '''
+
+    if type == "anyone":
+        print("give_person_access : type=anyone : extra argument")
+        return None
+
+    global httpAuth
+    driveService = apiclient.discovery.build('drive', 'v3',
+                                             http=httpAuth)  # Выбираем работу с Google Drive и 3 версию API
+    access = driveService.permissions().create(
+        fileId=spreadsheetId,
+        body={'type': type,
+              'role': role,
+               'emailAddress': target
+              },
+        # Открываем доступ на редактирование
+        fields='id'
+    ).execute()
+
+
+
 def delete_sheet(sheet_id):
     global service, cur_spreadsheet_id
     response = service.spreadsheets().batchUpdate(
@@ -227,6 +298,11 @@ def assign_pdf_file(paths_to_csv_list):
 if __name__ == '__main__':
     connect_to_spreadsheet()
     sheetList = get_all_sheets()
+
+    sp = create_new_doc(title_doc="Test")
+    give_person_access(target="komnackii2002@gmail.com", spreadsheetId=sp)
+
+
     """
     
     pprint(sheetList)
