@@ -1,15 +1,55 @@
-import PyPDF2
+import math
+import os
+
 import cv2
+import fitz
 import numpy as np
 import pandas as pd
 import pytesseract
-import tensorflow as tf
 from keras.models import load_model
-from keras.preprocessing.image import img_to_array
-import os
+from scipy.ndimage.measurements import center_of_mass
 
-JB = 0
+from borderFunc import extract_table
+
 PATH_TO_OUTPUT = ''
+PATH_TO_TMP = 'tmp'
+PATH_TO_IMG = PATH_TO_TMP + '/images/'
+
+SECTIONS = {
+    'CH': 'химия',
+    'MA': 'математика',
+    'PH': 'физика',
+    'T': 'техника',
+    'RB': 'робототехника',
+    'B': 'биология',
+    'CS': 'системное',
+    'ME': 'физиология',
+    'EC': 'экология',
+    'GE': 'науки',
+}
+JURY = {
+    'научного': [11] * 5,
+    'учительского': [11] * 2,
+    'молодежного': [13] * 3}
+COLUMNS = (
+    'Тип жюри',
+    'Номер проекта',
+    'Выберите группу, к которой можно отнести проект / Группа проекта',
+    'Оценивание проекта / Соответствие целей проекта или исследования полученным результатам',
+    'Оценивание проекта / Новизна и оригинальность',
+    'Оценивание проекта / Актуальность, востребованность',
+    'Оценивание проекта / Сложность',
+    'Оценивание проекта / Методологичность (качество инструментов, технологий, методов)',
+    'Оценивание проекта / Трудоемкость (вложенные интеллектуальные, временные и иные ресурсы)',
+    'Оценивание проекта / Законченность',
+    'Оценивание проекта / Грамотность, системность, коммуникативная культура',
+    'Критерии молодёжного жюри / Доступность для неспециалиста',
+    'Критерии молодёжного жюри / Нестандартный подход к работе',
+    'Критерии учительского жюри / Свободное владение материалом',
+    'Критерии учительского жюри / Влияние на личность участника, уровень работы относительно опыта',
+    'Критерии учительского жюри / Видение перспективы работы',
+    'Комментарий'
+)
 
 
 def get_path_to_output(out: str):
@@ -30,80 +70,80 @@ def sort_contours(cnts, method="left-to-right"):
     (cnts, bounding_boxes) = zip(*sorted(zip(cnts, bounding_boxes),
                                          key=lambda b: b[1][i],
                                          reverse=reverse))
-    return (cnts, bounding_boxes)
+    return cnts, bounding_boxes
 
 
-def contour_first(img):
-    """Detect digit contour."""
-    thresh = \
-        cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+def best_shift(img):
+    """Calculate center of mass and shift direction."""
+    cy, cx = center_of_mass(img)
 
-    cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    cnts = cnts[0] if len(cnts) == 2 else cnts[1]
-    x, y, w, h = [0] * 4
-    for c in cnts:
-        x, y, w, h = cv2.boundingRect(c)
-    return x, y, w, h
+    rows, cols = img.shape
+    shiftx = np.round(cols / 2.0 - cx).astype(int)
+    shifty = np.round(rows / 2.0 - cy).astype(int)
+
+    return shiftx, shifty
 
 
-def contour_second(img):
-    """Detect digit contour."""
-    thresh = cv2.threshold(img, 128, 255, cv2.THRESH_BINARY)[1]
-    cnt = cv2.bitwise_not(thresh)
-    x, y, w, h = cv2.boundingRect(cnt)
-    return x, y, w, h
-
-
-def contour_third(img):
-    """Detect digit contour."""
-    thresh = cv2.threshold(img, 64, 255, cv2.THRESH_BINARY)[1]
-    cnt = cv2.bitwise_not(thresh)
-    x, y, w, h = cv2.boundingRect(cnt)
-    return x, y, w, h
+def shift(img, sx, sy):
+    """Shift the image."""
+    rows, cols = img.shape
+    M = np.float32([[1, 0, sx], [0, 1, sy]])
+    shifted = cv2.warpAffine(img, M, (cols, rows))
+    return shifted
 
 
 def recognize_number(model, img):
     """Recognize blocks with handwritten digit."""
-    global JB
-    cv2.imwrite('tmp.jpg'.format(JB), img)
-    img = cv2.imread('tmp.jpg'.format(JB))
-    img = cv2.copyMakeBorder(img, 10, 10, 10, 10,
-                             cv2.BORDER_CONSTANT,
-                             value=(255, 255, 255))
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    x, y, w, h = contour_first(img)
-    if h < img.shape[0] / 15 or w < img.shape[1] / 15 or (
-            h == img.shape[0]) or (w == img.shape[1]):
-        x, y, w, h = contour_second(img)
-    if h < img.shape[0] / 15 or w < img.shape[1] / 15 or \
-            (h == img.shape[0]) or (w == img.shape[1]):
-        x, y, w, h = contour_third(img)
-
-    roi = img[y:y + h, x:x + w]
-    delta = abs(h - w)
-    if h > w:
-        top, bottom = 0, 0
-        right, left = delta // 2, (delta + 1) // 2
-    else:
-        top, bottom = delta // 2, (delta + 1) // 2
-        right, left = 0, 0
-    roi = cv2.copyMakeBorder(roi, top, bottom, left, right,
-                             cv2.BORDER_CONSTANT,
-                             value=(255, 255, 255))
-    try:
-        img = cv2.resize(roi, (20, 20), interpolation=cv2.INTER_AREA)
-    except:
-        img = cv2.resize(img, (20, 20), interpolation=cv2.INTER_AREA)
-    img = cv2.copyMakeBorder(img, 4, 4, 4, 4,
-                             cv2.BORDER_CONSTANT,
-                             value=(255, 255, 255))
+    cv2.imwrite('tmp.jpg', img)
+    img = cv2.imread('tmp.jpg', cv2.IMREAD_GRAYSCALE)
     img = 255 - img
-    img = tf.keras.utils.normalize(img, axis=1)
+    (thresh, gray) = cv2.threshold(img, 128, 255,
+                                   cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+
+    try:
+        while np.sum(gray[0]) == 0:
+            gray = gray[1:]
+
+        while np.sum(gray[:, 0]) == 0:
+            gray = np.delete(gray, 0, 1)
+
+        while np.sum(gray[-1]) == 0:
+            gray = gray[:-1]
+
+        while np.sum(gray[:, -1]) == 0:
+            gray = np.delete(gray, -1, 1)
+    except IndexError:
+        return ''
+
+    rows, cols = gray.shape
+
+    if rows > cols:
+        factor = 20.0 / rows
+        rows = 20
+        cols = int(round(cols * factor))
+        if cols == 0:
+            return ''
+        gray = cv2.resize(gray, (cols, rows))
+    else:
+        factor = 20.0 / cols
+        cols = 20
+        rows = int(round(rows * factor))
+        if rows == 0:
+            return ''
+        gray = cv2.resize(gray, (cols, rows))
+    colsPadding = (
+        int(math.ceil((28 - cols) / 2.0)), int(math.floor((28 - cols) / 2.0)))
+    rowsPadding = (
+        int(math.ceil((28 - rows) / 2.0)), int(math.floor((28 - rows) / 2.0)))
+    gray = np.lib.pad(gray, (rowsPadding, colsPadding), 'constant')
+    shiftx, shifty = best_shift(gray)
+    shifted = shift(gray, shiftx, shifty)
+    img = shifted
+    img = img / 255.0
     img = np.array(img).reshape(-1, 28, 28, 1)
 
     out = str(np.argmax(model.predict(img)))
 
-    JB += 1
     return out
 
 
@@ -124,120 +164,109 @@ def recognize_text(img):
     return out
 
 
-def box_preparation(img):
-    """Prepare tabular structure."""
-    thresh, img_bin = cv2.threshold(img, 128, 255,
-                                    cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-
-    img_bin = 255 - img_bin
-
-    kernel_len = np.array(img).shape[1] // 100
-    ver_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, kernel_len))
-    hor_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_len, 1))
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-
-    image_1 = cv2.erode(img_bin, ver_kernel, iterations=5)
-    vertical_lines = cv2.dilate(image_1, ver_kernel, iterations=5)
-
-    image_2 = cv2.erode(img_bin, hor_kernel, iterations=5)
-    horizontal_lines = cv2.dilate(image_2, hor_kernel, iterations=5)
-
-    img_vh = cv2.addWeighted(vertical_lines, 0.5, horizontal_lines, 0.5, 0.0)
-    img_vh = cv2.erode(~img_vh, kernel, iterations=2)
-    thresh, img_vh = cv2.threshold(img_vh, 128, 255,
-                                   cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-    bitxor = cv2.bitwise_xor(img, img_vh)
-    bitnot = cv2.bitwise_not(bitxor)
-
-    contours, hierarchy = cv2.findContours(img_vh, cv2.RETR_TREE,
-                                           cv2.CHAIN_APPROX_SIMPLE)
-    contours, boundingBoxes = sort_contours(contours, method='top-to-bottom')
-    heights = [boundingBoxes[i][3] for i in range(len(boundingBoxes))]
-    mean = np.mean(heights)
-
-    box = []
-    for c in contours:
-        x, y, w, h = cv2.boundingRect(c)
-        if (w < 1000 and h < 500):
-            box.append([x, y, w, h])
-    return box, mean, bitnot
-
-
-def page_recognition(img):
+def page_recognition(img, model):
     """Return dataframe of the main table and save it to csv."""
-    box, mean, bitnot = box_preparation(img)
-
-    row = []
-    column = []
-    j = 0
-    for i in range(len(box)):
-        if (i == 0):
-            column.append(box[i])
-            previous = box[i]
-        else:
-            if (box[i][1] <= previous[1] + mean / 2):
-                column.append(box[i])
-                previous = box[i]
-                if (i == len(box) - 1):
-                    row.append(column)
-            else:
-                row.append(column)
-                column = []
-                previous = box[i]
-                column.append(box[i])
-    print(column)
-    print(row)
-
-    countcol = 0
-    for i in range(len(row)):
-        countcol = len(row[i])
-        if countcol > countcol:
-            countcol = countcol
-
-    center = [int(row[i][j][0] + row[i][j][2] / 2) for j in range(len(row[i]))
-              if row[0]]
-    center = np.array(center)
-    center.sort()
-
-    finalboxes = []
-    for i in range(len(row)):
-        lis = []
-        for k in range(countcol):
-            lis.append([])
-        for j in range(len(row[i])):
-            diff = abs(center - (row[i][j][0] + row[i][j][2] / 4))
-            minimum = min(diff)
-            indexing = list(diff).index(minimum)
-            lis[indexing].append(row[i][j])
-        finalboxes.append(lis)
-
+    box, rows, cols = extract_table(img, 1, lines=None)
+    print('Table rows-cols: {}-{}'.format(rows, cols))
+    if len(box) == 0 or rows == 1 or cols == 0:
+        return None
     outer = []
-    model = load_model('../page_recognition/digit_rec/final_model.h5')
-    for i in range(len(finalboxes)):
-        for j in range(len(finalboxes[i])):
-            inner = ''
-            if len(finalboxes[i][j]) == 0:
-                outer.append(' ')
+    for i in range(rows):
+        for j in range(cols):
+            k = box[i + j * rows]
+            crop = img[k[1] + 2:k[7] - 2, k[0] + 2:k[6] - 2]
+            if i == 0 or 0 <= j <= 1:
+                out = recognize_text(crop)
             else:
-                for k in range(len(finalboxes[i][j])):
-                    y, x, w, h = finalboxes[i][j][k][0], finalboxes[i][j][k][1], \
-                                 finalboxes[i][j][k][2], finalboxes[i][j][k][3]
-                    finalimg = bitnot[x:x + h, y:y + w]
-                    if i > 0 and j > 1 and j < len(finalboxes[i]) - 1:
-                        out = recognize_number(model, finalimg)
-                    else:
-                        out = recognize_text(finalimg)
-                    out = out.replace('\n', ' ')
-                    out = out.replace('- ', '')
-                    inner = inner + " " + out
-                outer.append(inner)
-
+                out = recognize_number(model, crop)
+            outer.append(out)
     arr = np.array(outer)
-    df = pd.DataFrame(arr.reshape(len(row), countcol))
-    df = df.drop(df[df[1].map(len) < 3].index)
-    global PATH_TO_OUTPUT
-    df.to_csv(PATH_TO_OUTPUT)
-    os.remove('tmp.jpg')
+    df = pd.DataFrame(arr.reshape(rows, cols))
+
+    df.drop(df[df[1].map(len) < 3].index, inplace=True)
+    if not df.empty:
+        df.drop([0, 1], axis=1, inplace=True)
+        df.drop([0], axis=0, inplace=True)
+    if df.empty:
+        df = None
+
+    try:
+        os.remove('tmp.jpg')
+    except:
+        pass
     return df
 
-#page_recognition(cv2.imread(r'CH_list1-1.png', 0))
+
+def pdf_processing(src):
+    """
+    Return dict with final tables for all sections.
+
+        Parameters:
+            src (str): Path to pdf source
+
+        Returns:
+            sec_dataframes (dict): val is None if no section lists were detected
+                                    and pd.Dataframe otherwise
+    """
+    sec_dataframes = {
+        'CH': None,
+        'MA': None,
+        'PH': None,
+        'T': None,
+        'RB': None,
+        'B': None,
+        'CS': None,
+        'ME': None,
+        'EC': None,
+        'GE': None,
+    }
+    cur_section = None
+    cur_jury = None
+
+    doc = fitz.open(src)
+    global PATH_TO_IMG
+    for page in doc:
+        # Save pages as images in the pdf
+        pix = page.get_pixmap()
+        pix.save(PATH_TO_IMG + 'img' + str(page.number) + '.png')
+    images = os.listdir(PATH_TO_IMG)
+
+    model = load_model('page_recognition/final_model.h5')
+    project_num = 1
+    for num in range(len(images)):
+        print('PROCESSING {} page'.format(num))
+        image = cv2.imread(
+            os.path.abspath(PATH_TO_IMG + 'img{}.png'.format(num)))
+        df = page_recognition(image, model)
+
+        text = pytesseract.image_to_string(image, lang='rus').lower().split()
+        for key, val in SECTIONS.items():
+            if len(text[6]) > len(val) and text[6][1:len(val) + 1] == val:
+                cur_section = key
+
+        for name in JURY.keys():
+            if name in text:
+                cur_jury = name
+
+        if 'подпись' in text or 'расшифровкой' in text:
+            project_num = 1
+
+        if df is not None:
+            if sec_dataframes[cur_section] is None:
+                sec_dataframes[cur_section] = pd.DataFrame(columns=COLUMNS)
+            project_nums = [project_num + i for i in range(df.shape[0])]
+            df.insert(0, COLUMNS[1], project_nums)
+            project_num += df.shape[0]
+            df.insert(0, COLUMNS[0], cur_jury)
+            for i, col_index in enumerate(JURY[cur_jury]):
+                df.insert(col_index, str(col_index) + str(i), '', True)
+            new_columns = dict(zip(df.columns, COLUMNS))
+            df.rename(columns=new_columns, inplace=True)
+            sec_dataframes[cur_section] = sec_dataframes[cur_section].append(df,
+                                                                             ignore_index=True)
+
+        for key, df in sec_dataframes.items():
+            if df is not None:
+                df.to_csv('{}.csv'.format(key))
+        os.remove(os.path.abspath(PATH_TO_IMG + 'img{}.png'.format(num)))
+    return sec_dataframes
