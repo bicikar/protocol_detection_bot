@@ -1,5 +1,5 @@
 import cv2
-from line_detection import line_detection
+from page_recognition.line_detection import line_detection
 
 
 ##################  Functions required for Border table Recognition #################

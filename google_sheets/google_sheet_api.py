@@ -191,8 +191,13 @@ def get_data_from_csv_file(path_to_csv_file):
     return data_from_csv
 
 
+<<<<<<< HEAD
+def assign_csv_file(path_to_csv_file, title_sheet="Лист1", range_to_update="A1:"):
+    print("     PATH " + path_to_csv_file)
+=======
 def assign_csv_file(path_to_csv_file, spreadsheet_id=cur_spreadsheet_id, title_sheet="Лист1", range_to_update="A1:"):
     """assign data from csv_file to sheet with name title_sheet in range_to_update"""
+>>>>>>> 15e2a6180585d4d3f15550714bfc4a33e637d8f2
     values_to_update = get_data_from_csv_file(path_to_csv_file)
     assign_values(values_to_update, spreadsheet_id=spreadsheet_id, title_sheet=title_sheet,
                   range_to_update=range_to_update)

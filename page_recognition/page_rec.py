@@ -9,10 +9,11 @@ import pytesseract
 from keras.models import load_model
 from scipy.ndimage.measurements import center_of_mass
 
-from borderFunc import extract_table
+from page_recognition.borderFunc import extract_table
 
 PATH_TO_OUTPUT = ''
-PATH_TO_TMP = 'tmp'
+PATH_TO_TMP = '../tmp'
+PATH_TO_CSV = PATH_TO_TMP + '/csv/'
 PATH_TO_IMG = PATH_TO_TMP + '/images/'
 
 SECTIONS = {
@@ -223,20 +224,22 @@ def pdf_processing(src):
     cur_section = None
     cur_jury = None
 
+    page_id = src[src.rfind('/', 0, src.rfind('/')) + 1: src.rfind('/')]
+
     doc = fitz.open(src)
     global PATH_TO_IMG
     for page in doc:
         # Save pages as images in the pdf
         pix = page.get_pixmap()
-        pix.save(PATH_TO_IMG + 'img' + str(page.number) + '.png')
+        pix.save(PATH_TO_IMG + str(page_id) + 'img' + str(page.number) + '.png')
     images = os.listdir(PATH_TO_IMG)
 
-    model = load_model('page_recognition/final_model.h5')
+    model = load_model('../page_recognition/digit_rec/final_model.h5')
     project_num = 1
     for num in range(len(images)):
         print('PROCESSING {} page'.format(num))
         image = cv2.imread(
-            os.path.abspath(PATH_TO_IMG + 'img{}.png'.format(num)))
+            os.path.abspath(PATH_TO_IMG + str(page_id) + 'img{}.png'.format(num)))
         df = page_recognition(image, model)
 
         text = pytesseract.image_to_string(image, lang='rus').lower().split()
@@ -267,6 +270,6 @@ def pdf_processing(src):
 
         for key, df in sec_dataframes.items():
             if df is not None:
-                df.to_csv('{}.csv'.format(key))
-        os.remove(os.path.abspath(PATH_TO_IMG + 'img{}.png'.format(num)))
+                df.to_csv(PATH_TO_CSV + str(page_id) + "/" + '{}.csv'.format(key))
+        os.remove(os.path.abspath(PATH_TO_IMG + str(page_id) + 'img{}.png'.format(num)))
     return sec_dataframes
