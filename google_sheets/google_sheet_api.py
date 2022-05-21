@@ -6,17 +6,22 @@ import httplib2
 import apiclient.discovery
 from oauth2client.service_account import ServiceAccountCredentials
 
+# CREDENTIALS_FILE = '../google_sheets/creds.json'
+CREDENTIALS_FILE = 'creds.json'
+
 cur_spreadsheet_id = '1fOmbOzRUPOhiY4JqEKGjv_kEDNEDPnNVQVtJA4E1yNI'
+httpAuth = None
 
 
 def connect_to_spreadsheet(spreadsheet_id=cur_spreadsheet_id):
-    global cur_spreadsheet_id
-    cur_spreadsheet_id = spreadsheet_id
+    """connect to googleService
+    NB: spreadsheet_id is not necessarily, but you need himself show to file
+    :param spreadsheet_id:  https://docs.google.com/spreadsheets/d/spreadsheet_id/edit#gid=1323291202
 
-    #CREDENTIALS_FILE = 'creds.json'
-    CREDENTIALS_FILE = '../google_sheets/creds.json'
+    """
+    global cur_spreadsheet_id, CREDENTIALS_FILE, httpAuth
 
-    cur_spreadsheet_id = spreadsheet_id
+    change_main_spreadsheet(spreadsheet_id)
 
     credentials = ServiceAccountCredentials.from_json_keyfile_name(
         CREDENTIALS_FILE,
@@ -29,10 +34,20 @@ def connect_to_spreadsheet(spreadsheet_id=cur_spreadsheet_id):
     service = apiclient.discovery.build('sheets', 'v4', http=httpAuth)
 
 
-def get_all_sheets():
+def change_main_spreadsheet(spreadsheet_id):
+    global cur_spreadsheet_id
+    cur_spreadsheet_id = spreadsheet_id
+
+
+def get_all_sheets(spreadsheet_id=cur_spreadsheet_id):
+    """give all sheets
+        :param spreadsheet_id: needed doc
+        :return: list of sheets, for get field use get_sheetId, get_sheetTitle
+    """
+
     # Получаем список листов, их Id и название
-    global cur_spreadsheet_id, service
-    spreadsheet = service.spreadsheets().get(spreadsheetId=cur_spreadsheet_id).execute()
+    global service
+    spreadsheet = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
     sheetList = spreadsheet.get('sheets')
 
     '''
@@ -51,12 +66,19 @@ def get_sheetTitle(sheet):
     return sheet['properties']['title']
 
 
-def get_count_sheets():
-    sheetList = get_all_sheets()
+def get_count_sheets(spreadsheet_id=cur_spreadsheet_id):
+    sheetList = get_all_sheets(spreadsheet_id=spreadsheet_id)
     return len(sheetList)
 
 
 def get_right_age_of_rectangle(left_adge, size_col, size_row):
+    """calculate right angle cordinate
+    :param left_adge: for example "A4:G10", "B7:",
+    NB: first path necessarily inclusive ':'
+    :param size_col: size column
+    :param size_row: size row
+    """
+
     if size_col < 0 or size_row < 0:
         print("Смещение от начала прямоугольника должны быть неотрицательные")
         return
@@ -109,8 +131,18 @@ def get_max_cols_rows_2d_list(list_2d):
         return -1
 
 
-def assign_values(values_to_update, title_sheet="Лист1", range_to_update="A1:", majorDimension_to_update="ROWS"):
-    global cur_spreadsheet_id, service
+def assign_values(values_to_update, spreadsheet_id=cur_spreadsheet_id, title_sheet="Лист1", range_to_update="A1:",
+                  majorDimension_to_update="ROWS"):
+    """Assign values in the shape of a rectangle to spreadsheet_id doc
+    :param values_to_update: List2D of data
+    :param spreadsheet_id: needed doc
+    :param title_sheet: sheet with title must be change
+    :param range_to_update:
+    :param range_to_update: for example "A4:G10", "B7:",
+    NB: first path necessarily inclusive ':'
+    :param majorDimension_to_update: type of write data ROWS or COLUMNS
+    """
+    global service
     # print('Hello')
     if not range_to_update[1].isdigit():
         print("Дальше буквы Z не работаем! И на втором месте должна стоять цифра!")
@@ -139,7 +171,7 @@ def assign_values(values_to_update, title_sheet="Лист1", range_to_update="A1
     # return
 
     service.spreadsheets().values().batchUpdate(
-        spreadsheetId=cur_spreadsheet_id,
+        spreadsheetId=spreadsheet_id,
         body={
             "valueInputOption": "USER_ENTERED",
             "data": [
@@ -159,45 +191,126 @@ def get_data_from_csv_file(path_to_csv_file):
     return data_from_csv
 
 
+<<<<<<< HEAD
 def assign_csv_file(path_to_csv_file, title_sheet="Лист1", range_to_update="A1:"):
     print("     PATH " + path_to_csv_file)
+=======
+def assign_csv_file(path_to_csv_file, spreadsheet_id=cur_spreadsheet_id, title_sheet="Лист1", range_to_update="A1:"):
+    """assign data from csv_file to sheet with name title_sheet in range_to_update"""
+>>>>>>> 15e2a6180585d4d3f15550714bfc4a33e637d8f2
     values_to_update = get_data_from_csv_file(path_to_csv_file)
-    assign_values(values_to_update, title_sheet=title_sheet, range_to_update=range_to_update)
+    assign_values(values_to_update, spreadsheet_id=spreadsheet_id, title_sheet=title_sheet,
+                  range_to_update=range_to_update)
 
 
-def clear_sheet(title_sheet="Лист1", range_to_clear="A1:Z50"):
-    global service, spreadsheet_id
+def clear_sheet(title_sheet="Лист1", spreadsheet_id=cur_spreadsheet_id, range_to_clear="A1:Z50"):
+    global service
     service.spreadsheets().values().clear(
-        spreadsheetId=cur_spreadsheet_id,
+        spreadsheetId=spreadsheet_id,
         range=title_sheet + "!" + range_to_clear,
         body={}
     ).execute()
 
 
-def create_new_sheet():
-    global cur_spreadsheet_id, service
+def create_new_sheet(spreadsheet_id=cur_spreadsheet_id):
+    global service
     new_title = "Лист" + str(get_count_sheets() + 1)
     try:
         results = service.spreadsheets().batchUpdate(
-            spreadsheetId=cur_spreadsheet_id,
+            spreadsheetId=spreadsheet_id,
             body={
                 "requests": [{
-                        "addSheet": {
-                            "properties": {
-                                "title": new_title,
-                            }
+                    "addSheet": {
+                        "properties": {
+                            "title": new_title,
                         }
                     }
+                }
                 ]
             }).execute()
     except TypeError:
         print("Имя занято")
 
 
-def delete_sheet(sheet_id):
+def create_new_doc(title_doc="Новый тестовый документ", title_sheet="Лист номер один", rowCount=200, columnCount=30):
+    """Create new doc
+    :param title_doc: title new doc
+    :param title_sheet: title first sheet
+    :param rowCount: max rowCount
+    :param columnCount: max columnCount
+    :return spreedsheetId new doc
+    """
+    global service
+    spreadsheet = service.spreadsheets().create(body={
+        'properties': {'title': title_doc, 'locale': 'ru_RU'},
+        'sheets': [{'properties': {'sheetType': 'GRID',
+                                   'sheetId': 0,
+                                   'title': title_sheet,
+                                   'gridProperties': {'rowCount': rowCount, 'columnCount': columnCount}}}]
+    }).execute()
+    spreadsheetId = spreadsheet['spreadsheetId']  # сохраняем идентификатор файла
+
+    print('https://docs.google.com/spreadsheets/d/' + spreadsheetId)
+
+    return spreadsheetId
+
+
+def give_everyone_access(role='writer', spreadsheetId=cur_spreadsheet_id):
+    ''' give everyone access to the doc(spredsheet)
+        :param spreadsheetId: doc spreadsheetId
+        :param role: mode work
+    '''
+    type = 'anyone'
+
+    global httpAuth
+    driveService = apiclient.discovery.build('drive', 'v3',
+                                             http=httpAuth)  # Выбираем работу с Google Drive и 3 версию API
+    access = driveService.permissions().create(
+        fileId=spreadsheetId,
+        body={'type': type,
+              'role': role,
+              },
+        # Открываем доступ на редактирование
+        fields='id'
+    ).execute()
+
+
+def give_person_access(target="naumtsevalex@gmail.com", type='user', role='writer', spreadsheetId=cur_spreadsheet_id):
+    '''give doc(spreadsheetId) permission  to target
+        :param type: type of who needs acces it is not anyone
+        :param spreadsheetId: doc spreadsheetId
+        :param target: who needs access
+
+        :return: bool - True is problem with EmailAddres
+    '''
+
+    if type == "anyone":
+        print("give_person_access : type=anyone : extra argument")
+        return None
+
+    global httpAuth
+    try:
+        driveService = apiclient.discovery.build('drive', 'v3',
+                                                 http=httpAuth)  # Выбираем работу с Google Drive и 3 версию API
+        access = driveService.permissions().create(
+            fileId=spreadsheetId,
+            body={'type': type,
+                  'role': role,
+                  'emailAddress': target
+                  },
+            # Открываем доступ на редактирование
+            fields='id'
+        ).execute()
+        return False
+    except:
+        print("give_person_access : maybe wrong emailAddress")
+        return True
+
+
+def delete_sheet(sheet_id, spreadsheet_id=cur_spreadsheet_id):
     global service, cur_spreadsheet_id
     response = service.spreadsheets().batchUpdate(
-        spreadsheetId=cur_spreadsheet_id,
+        spreadsheetId=spreadsheet_id,
         body={
             'requests': [
                 {
@@ -210,7 +323,12 @@ def delete_sheet(sheet_id):
     ).execute()
 
 
-def assign_pdf_file(paths_to_csv_list):
+def assign_pdf_file(paths_to_csv_list, spreadsheet_id=cur_spreadsheet_id):
+    """assign data from csv to start A1
+    :param paths_to_csv_list: path where there are csv
+    :param spreadsheetId: doc spreadsheetId
+    """
+
     cnt_csv_list = len(paths_to_csv_list)
     cnt_sheets = len(get_all_sheets())
     # можно реализовать одним batchUpdate
@@ -219,8 +337,9 @@ def assign_pdf_file(paths_to_csv_list):
             create_new_sheet()
     try:
         for ind, sheet in enumerate(get_all_sheets()):
-                clear_sheet(get_sheetTitle(sheet))
-                assign_csv_file(path_to_csv_file=paths_to_csv_list[ind], title_sheet=get_sheetTitle(sheet))
+            clear_sheet(get_sheetTitle(sheet))
+            assign_csv_file(spreadsheet_id=spreadsheet_id, path_to_csv_file=paths_to_csv_list[ind],
+                            title_sheet=get_sheetTitle(sheet))
     except TypeError:
         print("Error : assign_pdf_file")
 
@@ -228,6 +347,10 @@ def assign_pdf_file(paths_to_csv_list):
 if __name__ == '__main__':
     connect_to_spreadsheet()
     sheetList = get_all_sheets()
+
+    #create_new_doc(title_doc="Test")
+    #give_person_access(target="naumvalex@gm", spreadsheetId="1wDpZ5Er_Kiji3E1VJfkM8xoUZpo86sU5G8tbss0BPJ0")
+
     """
     
     pprint(sheetList)
@@ -248,5 +371,5 @@ if __name__ == '__main__':
     '''
     # assign_values(list_val, range_to_update="K18:")
 
-    #pprint(get_all_sheets())
-    #delete_sheet(0)
+    # pprint(get_all_sheets())
+    # delete_sheet(0)
