@@ -276,6 +276,7 @@ def give_person_access(target="naumtsevalex@gmail.com", type='user', role='write
         :param spreadsheetId: doc spreadsheetId
         :param target: who needs access
 
+        :return: bool - True is problem with EmailAddres
     '''
 
     if type == "anyone":
@@ -283,17 +284,22 @@ def give_person_access(target="naumtsevalex@gmail.com", type='user', role='write
         return None
 
     global httpAuth
-    driveService = apiclient.discovery.build('drive', 'v3',
-                                             http=httpAuth)  # Выбираем работу с Google Drive и 3 версию API
-    access = driveService.permissions().create(
-        fileId=spreadsheetId,
-        body={'type': type,
-              'role': role,
-              'emailAddress': target
-              },
-        # Открываем доступ на редактирование
-        fields='id'
-    ).execute()
+    try:
+        driveService = apiclient.discovery.build('drive', 'v3',
+                                                 http=httpAuth)  # Выбираем работу с Google Drive и 3 версию API
+        access = driveService.permissions().create(
+            fileId=spreadsheetId,
+            body={'type': type,
+                  'role': role,
+                  'emailAddress': target
+                  },
+            # Открываем доступ на редактирование
+            fields='id'
+        ).execute()
+        return False
+    except:
+        print("give_person_access : maybe wrong emailAddress")
+        return True
 
 
 def delete_sheet(sheet_id, spreadsheet_id=cur_spreadsheet_id):
@@ -337,8 +343,8 @@ if __name__ == '__main__':
     connect_to_spreadsheet()
     sheetList = get_all_sheets()
 
-    sp = create_new_doc(title_doc="Test")
-    give_person_access(target="komnackii2002@gmail.com", spreadsheetId=sp)
+    #create_new_doc(title_doc="Test")
+    #give_person_access(target="naumvalex@gm", spreadsheetId="1wDpZ5Er_Kiji3E1VJfkM8xoUZpo86sU5G8tbss0BPJ0")
 
     """
     
