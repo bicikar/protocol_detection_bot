@@ -7,6 +7,7 @@ from pdf2image import convert_from_path
 import keys  # файл с ключами
 from page_recognition.page_rec import page_recognition as page_rec
 from page_recognition.page_rec import get_path_to_output as set_path_to_output
+from page_recognition.page_rec import pdf_processing as pdf_rec
 
 from google_sheets.google_sheet_api import assign_pdf_file, connect_to_spreadsheet
 
@@ -56,50 +57,80 @@ def handle_docs(message):
         file_info = bot.get_file(message.document.file_id)
         downloaded_file = bot.download_file(file_info.file_path)
         create_infrastructure()
-        src = PATH_TO_PDF + message.document.file_name
+
+        create_dir(PATH_TO_PDF + str(message.from_user.id))
+        create_dir(PATH_TO_CSV + str(message.from_user.id))
+        src = PATH_TO_PDF + str(message.from_user.id) + "/" + message.document.file_name
 
         with open(src, 'wb') as new_file:
             new_file.write(downloaded_file)
 
-        images = convert_from_path(src)
+        df = pdf_rec(src)
 
-        images = list(reversed(images))
-        global PATH_TO_IMG
-        for i in range(len(images)):
-            # Save pages as images in the pdf
-            images[i].save(PATH_TO_IMG + 'img' + str(i) + '.jpg', 'JPEG')
-
-        os.remove(src)
-
-        images = os.listdir(PATH_TO_IMG)
-        global num_of_sheet
-        global PATH_TO_CSV
-        global PATH_TO_OUTPUT
         list_paths_to_csv = []
-
-
-        for img in images:
-            num_of_sheet += 1
-            PATH_TO_OUTPUT = PATH_TO_CSV + str(num_of_sheet) + '.csv'
-            set_path_to_output(PATH_TO_OUTPUT)
-            csv = page_rec(cv2.imread(os.path.abspath(PATH_TO_IMG + img), 0))
-            list_paths_to_csv.append(PATH_TO_OUTPUT)
-
-            # send_to_telegram
-            send_file(PATH_TO_OUTPUT, 'document', message.from_user.id)
-            # send_to_google-sheets
-
-
-            os.remove(os.path.abspath(PATH_TO_IMG + img))
-
+        csv_folder = os.listdir(PATH_TO_CSV + str(message.from_user.id))
+        for csv in csv_folder:
+            list_paths_to_csv.append(PATH_TO_CSV + str(message.from_user.id) + "/" + csv)
         # assign_pdf
         connect_to_spreadsheet()
+        print(list_paths_to_csv)
         assign_pdf_file(list_paths_to_csv)
 
+        os.remove(src)
+        print("----------------------------------------------------------------------------")
 
-        tables = os.listdir(PATH_TO_CSV)
-        for csv in tables:
-            os.remove(os.path.abspath(PATH_TO_CSV + csv))
+@bot.message_handler(content_types=['image'])
+def handle_images(message):
+    '''
+    file_info = bot.get_file(message.document.file_id)
+    downloaded_file = bot.download_file(file_info.file_path)
+    create_infrastructure()
 
+    create_dir(PATH_TO_PDF + message.from_user.id)
+    src = PATH_TO_PDF + message.from_user.id + "/" +message.document.file_name
+
+    with open(src, 'wb') as new_file:
+        new_file.write(downloaded_file)
+
+    images = convert_from_path(src)
+
+    images = list(reversed(images))
+    global PATH_TO_IMG
+    for i in range(len(images)):
+        # Save pages as images in the pdf
+        images[i].save(PATH_TO_IMG + 'img' + str(i) + '.jpg', 'JPEG')
+
+    os.remove(src)
+
+    images = os.listdir(PATH_TO_IMG)
+    global num_of_sheet
+    global PATH_TO_CSV
+    global PATH_TO_OUTPUT
+    list_paths_to_csv = []
+
+
+    for img in images:
+        num_of_sheet += 1
+        PATH_TO_OUTPUT = PATH_TO_CSV + str(num_of_sheet) + '.csv'
+        set_path_to_output(PATH_TO_OUTPUT)
+        csv = page_rec(cv2.imread(os.path.abspath(PATH_TO_IMG + img), 0))
+        list_paths_to_csv.append(PATH_TO_OUTPUT)
+
+        # send_to_telegram
+        send_file(PATH_TO_OUTPUT, 'document', message.from_user.id)
+        # send_to_google-sheets
+
+
+        os.remove(os.path.abspath(PATH_TO_IMG + img))
+
+    # assign_pdf
+    connect_to_spreadsheet()
+    assign_pdf_file(list_paths_to_csv)
+
+
+    tables = os.listdir(PATH_TO_CSV)
+    for csv in tables:
+        os.remove(os.path.abspath(PATH_TO_CSV + csv))
+    '''
 
 bot.infinity_polling()
