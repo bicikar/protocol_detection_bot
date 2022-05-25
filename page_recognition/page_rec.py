@@ -124,14 +124,14 @@ def recognize_number(model, img):
         cols = int(round(cols * factor))
         if cols == 0:
             return ''
-        gray = cv2.resize(gray, (cols, rows))
+        gray = cv2.resize(gray, (cols, rows), interpolation=cv2.INTER_AREA)
     else:
         factor = 20.0 / cols
         cols = 20
         rows = int(round(rows * factor))
         if rows == 0:
             return ''
-        gray = cv2.resize(gray, (cols, rows))
+        gray = cv2.resize(gray, (cols, rows), interpolation=cv2.INTER_AREA)
     colsPadding = (
         int(math.ceil((28 - cols) / 2.0)), int(math.floor((28 - cols) / 2.0)))
     rowsPadding = (
@@ -234,7 +234,7 @@ def pdf_processing(src):
         pix.save(PATH_TO_IMG + str(page_id) + 'img' + str(page.number) + '.png')
     images = os.listdir(PATH_TO_IMG)
 
-    model = load_model('../page_recognition/digit_rec/final_model.h5')
+    model = load_model('../page_recognition/digit_rec/kaggle1.h5')
     project_num = 1
     for num in range(len(images)):
         print('PROCESSING {} page'.format(num))
