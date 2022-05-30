@@ -6,9 +6,10 @@ import httplib2
 import apiclient.discovery
 from oauth2client.service_account import ServiceAccountCredentials
 
-# CREDENTIALS_FILE = '../google_sheets/creds.json'
-CREDENTIALS_FILE = 'creds.json'
+CREDENTIALS_FILE = '../google_sheets/creds.json'
+#CREDENTIALS_FILE = 'creds.json'
 
+# https://docs.google.com/spreadsheets/d/1fOmbOzRUPOhiY4JqEKGjv_kEDNEDPnNVQVtJA4E1yNI/edit#gid=1221336755
 cur_spreadsheet_id = '1fOmbOzRUPOhiY4JqEKGjv_kEDNEDPnNVQVtJA4E1yNI'
 httpAuth = None
 
@@ -22,6 +23,9 @@ def connect_to_spreadsheet(spreadsheet_id=cur_spreadsheet_id):
     global cur_spreadsheet_id, CREDENTIALS_FILE, httpAuth
 
     change_main_spreadsheet(spreadsheet_id)
+
+    print("connect_to_spredsheet=" + spreadsheet_id)
+    print()
 
     credentials = ServiceAccountCredentials.from_json_keyfile_name(
         CREDENTIALS_FILE,
@@ -144,6 +148,12 @@ def assign_values(values_to_update, spreadsheet_id=cur_spreadsheet_id, title_she
     """
     global service
     # print('Hello')
+    print("assign_value values_to_update: ")
+    print(values_to_update)
+    print("assign_values spreadsheet_id=" + str(spreadsheet_id))
+    print("assign_value title_sheet=" + title_sheet)
+    print()
+
     if not range_to_update[1].isdigit():
         print("Дальше буквы Z не работаем! И на втором месте должна стоять цифра!")
         return
@@ -188,16 +198,18 @@ def get_data_from_csv_file(path_to_csv_file):
     with open(path_to_csv_file, 'r', newline='') as csvfile:
         csv_reader = csv.reader(csvfile)
         data_from_csv = list(csv_reader)
+        print("File is openning: " + path_to_csv_file)
+        print("data: ")
+        print(data_from_csv)
+    print("File close???: " + path_to_csv_file)
+    print()
+
     return data_from_csv
 
 
-<<<<<<< HEAD
-def assign_csv_file(path_to_csv_file, title_sheet="Лист1", range_to_update="A1:"):
-    print("     PATH " + path_to_csv_file)
-=======
 def assign_csv_file(path_to_csv_file, spreadsheet_id=cur_spreadsheet_id, title_sheet="Лист1", range_to_update="A1:"):
     """assign data from csv_file to sheet with name title_sheet in range_to_update"""
->>>>>>> 15e2a6180585d4d3f15550714bfc4a33e637d8f2
+
     values_to_update = get_data_from_csv_file(path_to_csv_file)
     assign_values(values_to_update, spreadsheet_id=spreadsheet_id, title_sheet=title_sheet,
                   range_to_update=range_to_update)
@@ -214,7 +226,7 @@ def clear_sheet(title_sheet="Лист1", spreadsheet_id=cur_spreadsheet_id, rang
 
 def create_new_sheet(spreadsheet_id=cur_spreadsheet_id):
     global service
-    new_title = "Лист" + str(get_count_sheets() + 1)
+    new_title = "Лист" + str(get_count_sheets(spreadsheet_id=spreadsheet_id) + 1)
     try:
         results = service.spreadsheets().batchUpdate(
             spreadsheetId=spreadsheet_id,
@@ -328,16 +340,25 @@ def assign_pdf_file(paths_to_csv_list, spreadsheet_id=cur_spreadsheet_id):
     :param paths_to_csv_list: path where there are csv
     :param spreadsheetId: doc spreadsheetId
     """
+    #print(paths_to_csv_list)
 
     cnt_csv_list = len(paths_to_csv_list)
-    cnt_sheets = len(get_all_sheets())
+    cnt_sheets = len(get_all_sheets(spreadsheet_id=spreadsheet_id))
     # можно реализовать одним batchUpdate
+    print("assign_pdaf_file: cnt_csv_list=" + str(cnt_csv_list) + ": cnt_sheets=" + str(cnt_sheets))
     if cnt_csv_list > cnt_sheets:
         for _ in range(cnt_csv_list - cnt_sheets):
-            create_new_sheet()
+            create_new_sheet(spreadsheet_id=spreadsheet_id)
     try:
-        for ind, sheet in enumerate(get_all_sheets()):
-            clear_sheet(get_sheetTitle(sheet))
+        for ind, sheet in enumerate(get_all_sheets(spreadsheet_id=spreadsheet_id)):
+            if ind == cnt_csv_list:
+                print("Finish running on all_sheets " + "ind=" + str(ind))
+                break
+            clear_sheet(title_sheet=get_sheetTitle(sheet), spreadsheet_id=spreadsheet_id)
+            print("assign_pdf_file get_sheetTitle=" + get_sheetTitle(sheet))
+            print("assign_pdf_file spreadSheet=" + spreadsheet_id)
+            print()
+
             assign_csv_file(spreadsheet_id=spreadsheet_id, path_to_csv_file=paths_to_csv_list[ind],
                             title_sheet=get_sheetTitle(sheet))
     except TypeError:

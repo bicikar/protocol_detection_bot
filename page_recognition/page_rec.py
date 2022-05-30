@@ -168,7 +168,7 @@ def recognize_text(img):
 def page_recognition(img, model):
     """Return dataframe of the main table and save it to csv."""
     box, rows, cols = extract_table(img, 1, lines=None)
-    print('Table rows-cols: {}-{}'.format(rows, cols))
+    # print('Table rows-cols: {}-{}'.format(rows, cols))
     if len(box) == 0 or rows == 1 or cols == 0:
         return None
     outer = []
@@ -237,7 +237,7 @@ def pdf_processing(src):
     model = load_model('../page_recognition/digit_rec/kaggle1.h5')
     project_num = 1
     for num in range(len(images)):
-        print('PROCESSING {} page'.format(num))
+        # print('PROCESSING {} page'.format(num))
         image = cv2.imread(
             os.path.abspath(PATH_TO_IMG + str(page_id) + 'img{}.png'.format(num)))
         df = page_recognition(image, model)
@@ -267,7 +267,6 @@ def pdf_processing(src):
             df.rename(columns=new_columns, inplace=True)
             sec_dataframes[cur_section] = sec_dataframes[cur_section].append(df,
                                                                              ignore_index=True)
-
         for key, df in sec_dataframes.items():
             if df is not None:
                 df.to_csv(PATH_TO_CSV + str(page_id) + "/" + '{}.csv'.format(key))
